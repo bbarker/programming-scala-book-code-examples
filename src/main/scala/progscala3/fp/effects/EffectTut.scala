@@ -1,4 +1,6 @@
-import scala.util._
+package progscala3.fp.effects
+
+import scala.util.*
 
 /*
  * Last week we talked about Referential Transparency and said that
@@ -16,22 +18,19 @@ import scala.util._
  * without relying on side-effects.
  */
 
-object SideEffectsVsRT {
+object SideEffectsVsRT:
   // This function is RT because it can be replaced by the value it produces
   // without affecting the program's output in any way
-  def foo(i: Int): Boolean = {
-    i == 42
-  }
+  def foo(i: Int): Boolean = i == 42
 
   // true is indeed equivalent to foo(42)
   val f = foo(42)
   (f, f) == (true, true)
 
   // What about bar?
-  def bar(i: Int): Boolean = {
+  def bar(i: Int): Boolean =
     println("Evaluating bar!")
     i == 42
-  }
 
   // Can we replace bar(42) by true without affecting the program's overall output?
   val b = bar(42)
@@ -54,7 +53,7 @@ object SideEffectsVsRT {
     }
   // In Scala, functions are first class citizens, and can be expressed in terms
   // of literal.
-  val value: () => Boolean           = safeBar(42)
+  val value: () => Boolean = safeBar(42)
   (value, value) == (safeBar(42), safeBar(42))
   // value is RT, because we can replace it by `safeBar(42)` without affecting
   // the program's output in any way. That's a great first step to bring sanity
@@ -67,7 +66,7 @@ object SideEffectsVsRT {
   // by the value. What have we done here? Well we separated the description of
   // a program from its evaluation.
   val description: () => Boolean = value
-  val execution: Boolean         = value() // prints out "Evaluating bar!"
+  val execution: Boolean = value() // prints out "Evaluating bar!"
 
   // That's another benefit of RT. It enables us to delay the evaluation of
   // a side-effect until the very last moment, that is, when we have no other
@@ -117,15 +116,14 @@ object SideEffectsVsRT {
   // Program represents a function literal taking no argument and producing an A.
   // `run` is a function which potentially have side effects. It's "unsafe"
   // to run it. By unsafe, we mean it's not RT.
-  case class Program[A](run: () => A) {
+  case class Program[A](run: () => A):
     // `andThen` enables composition of Program just like with Functions earlier
     def andThen[B](f: A => Program[B]): Program[B] =
       Program { () =>
-        val a                = run()
+        val a = run()
         val next: Program[B] = f(a)
         next.run()
       }
-  }
 
   // Let's try to write a slightly more complex program than earlier. We'd like
   // to write a program that welcomes the user, asks for their name, and prints
@@ -158,17 +156,16 @@ object SideEffectsVsRT {
   // assign a Program0[Nothing] to a value typed as a Program0[Whatever].
   // This is not an important detail for our conversation, we can schedule another
   // session for that.
-  case class Program0[+A](run: () => A) {
-    import Program0._
+  case class Program0[+A](run: () => A):
+    import Program0.*
 
     // and add failure management (Note that the A0 >: A is required to keep
     // Program0 covariant in A. More on that in another session)
     def recover[A0 >: A](f: Throwable => Program0[A0]): Program0[A0] =
       Program0 { () =>
-        scala.util.Try(run()) match {
+        scala.util.Try(run()) match
           case Failure(exception) => f(exception).run()
           case Success(value)     => value
-        }
       }
 
     // along with retry semantic
@@ -180,7 +177,7 @@ object SideEffectsVsRT {
 
     def andThen[B](f: A => Program0[B]): Program0[B] =
       Program0 { () =>
-        val a                 = run()
+        val a = run()
         val next: Program0[B] = f(a)
         next.run()
       }
@@ -203,8 +200,7 @@ object SideEffectsVsRT {
     def flatMap[B](f: A => Program0[B]): Program0[B] =
       andThen(f)
 
-  }
-  object Program0                       {
+  object Program0:
     // We've also added a constructor to build Program that fail with an
     // message
     def fail(message: String = ""): Program0[Nothing] =
@@ -216,13 +212,10 @@ object SideEffectsVsRT {
       Program0(() => value)
 
     // A fancy constructor to build if-else kind of construct
-    def ifElse[B](predicate: Boolean)(
-        ifTrue: Program0[B],
-        ifFalse: Program0[B]
-    ): Program0[B] =
-      xs  if (predicate) ifTrue else ifFalse
-  }
-  import Program0._
+    def ifElse[B](predicate: Boolean)(ifTrue: Program0[B],
+                                      ifFalse: Program0[B]): Program0[B] =
+      if (predicate) ifTrue else ifFalse
+  import Program0.*
 
   def putStrLn0(line: String): Program0[Unit] =
     Program0(() => println(line))
@@ -246,40 +239,36 @@ object SideEffectsVsRT {
   // are endless
   val welcome1: Program0[Unit] =
     (for {
-      _    <- putStrLn0("Hi, what is your name?")
+      _ <- putStrLn0("Hi, what is your name?")
       name <- getStrLn0
-      _    <- ifElse(name == "Joe")(
-                putStrLn0("Welcome Joe!"),
-                fail("No soup for you!!!")
-              )
+      _ <- ifElse(name == "Joe")(
+        putStrLn0("Welcome Joe!"),
+        fail("No soup for you!!!")
+      )
     } yield ()).retry(3)
 
   // Now let's think about how would one express this
   // not using RT, or an effect system, but only with an imperative style.
   // Is this construct easy to reason about? easy to re-use?
-  def imperativeWelcome(nbRetry: Int): Unit = {
+  def imperativeWelcome(nbRetry: Int): Unit =
     println("Hi, what is your name?")
     val name = scala.io.StdIn.readLine()
     if (name == "Joe")
       println("Welcome Joe!")
-    else {
+    else
       println("No soup for you!!!")
       if (nbRetry > 0)
         imperativeWelcome(nbRetry - 1)
       else
-        throw new xsRuntimeException("KABOOM!")
-    }
-  }
+        throw new RuntimeException("KABOOM!")
 
   // Final thoughts: the current Program is not stack safe:
   // val stackSafe = putStrLn0("Hi, what is your name?").repeat(10000000)
   // There are ways to improve this, but we can see this in another talk.
-  // Secondly, the encoding we used for Program0 is referred to as an 
+  // Secondly, the encoding we used for Program0 is referred to as an
   // executable encoding. This decision comes with some drawbacks and there
   // is a better way to do this (topic for another talk),
-}
-object Welcome extends App {
-  import SideEffectsVsRT._
+@main def Welcome(params: String*): Unit =
+  import SideEffectsVsRT.*
 
   welcome0.run()
-}

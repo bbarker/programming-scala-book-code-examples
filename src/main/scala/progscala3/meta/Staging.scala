@@ -28,11 +28,10 @@ object Fold:
       using Type[T], Quotes): Expr[T] = '{
     var accum: T = ($seed)
     var i = 0
-    while i < ($arr).length do {
+    while i < ($arr).length do
       val element: T = ($arr)(i)
       i += 1
       accum = ${combine}(accum, element)
-    }
     accum
   }
 

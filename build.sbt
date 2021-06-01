@@ -43,9 +43,9 @@ lazy val root = project
       "-feature",                          // Emit warning and location for usages of features that should be imported explicitly.
       "-explain",                          // Explain errors in more detail.
       // "-explain-types",                    // Explain type errors in more detail.
-      // "-indent",                           // Together with -rewrite, remove {...} syntax when possible due to significant indentation.
+      "-indent",                           // Together with -rewrite, remove {...} syntax when possible due to significant indentation.
       // "-no-indent",                        // Require classical {...} syntax, indentation is not significant.
-      "-new-syntax",                       // Require `then` and `do` in control expressions.
+      // "-new-syntax",                       // Require `then` and `do` in control expressions.
       // "-old-syntax",                       // Require `(...)` around conditions.
       // "-language:Scala2",                  // Compile Scala 2 code, highlight what needs updating
       // "-language:strictEquality",          // Require +derives Eql+ for using == or != comparisons
